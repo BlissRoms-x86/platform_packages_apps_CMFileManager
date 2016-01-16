@@ -19,6 +19,12 @@ import android.content.Context;
 import android.os.Environment;
 import android.os.storage.StorageManager;
 import android.os.storage.StorageVolume;
+import android.os.storage.VolumeInfo;
+import android.os.UserHandle;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import com.cyanogenmod.filemanager.FileManagerApplication;
 import com.cyanogenmod.filemanager.R;
@@ -50,9 +56,22 @@ public final class StorageHelper {
             //IMP!! Android SDK doesn't have a "getVolumeList" but is supported by CM10.
             //Use reflect to get this value (if possible)
             try {
+
+                final ArrayList<StorageVolume> res = new ArrayList<>();
+                final int userId = UserHandle.myUserId();
+
                 StorageManager sm = (StorageManager) ctx.getSystemService(Context.STORAGE_SERVICE);
-                Method method = sm.getClass().getMethod("getVolumeList"); //$NON-NLS-1$
-                sStorageVolumes = (StorageVolume[])method.invoke(sm);
+                final List<VolumeInfo> volumes = sm.getVolumes();
+                Collections.sort(volumes, VolumeInfo.getDescriptionComparator());
+
+                for (VolumeInfo vol : volumes) {
+                     if (vol.getType() == VolumeInfo.TYPE_PUBLIC || vol.getType() == VolumeInfo.TYPE_EMULATED) {
+                         final StorageVolume userVol = vol.buildStorageVolume(ctx, userId, false);
+                         res.add(userVol);
+                     }
+                }
+
+                sStorageVolumes = res.toArray(new StorageVolume[res.size()]);
 
             } catch (Exception ex) {
                 //Ignore. Android SDK StorageManager class doesn't have this method
